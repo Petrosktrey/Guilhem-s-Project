@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Simple API Project</title>
+    <link rel="stylesheet" href="WidgetToSend.css">
+    <link href="https://allfont.net/allfont.css?fonts=komika-axis" rel="stylesheet" type="text/css" />
+</head>
+
+<body>
+    <div class="container barExpImageContainer">
+        <div id="barExpContainer">
+            <div id="barExp">
+            </div>
+        </div>
+        <div id="lvlIndicatorDiv">
+            <p id="lvlIndicatorP">Lvl 1</p>
+        </div>
+    </div>
+
+    <script>
+
+        //Some variables to be used in regards of experience levels.
+        let checkXp = 0;
+        let incrementLevel = 0;
+        let nextLevelExp = 0;
+        let previousLevelExp = 0;
+        let expAquiredForCurrentLevel2 = 0;
+        let expRequiredToLevelUp = 0;
+        let pourcentageExpAquiredOfCurrentLevel = 0;
+
+        async function getNumber() {
+            createScript('http://localhost:8080/getNumber?callback=getExpBarWidth');
+        }
+
+        function createScript(src) {
+            const oldScript = document.getElementById('dynamic-script');
+
+            // Remove the old script element if exist
+            if (oldScript) {
+                oldScript.remove();
+            }
+
+            // Create new script
+            const script = document.createElement('script');
+            script.id = "dynamic-script";
+            script.src = src;
+            document.head.appendChild(script);
+        }
+
+        function getExpBarWidth(data) {
+            figureOutLevelGivenXP(data);
+        }
+
+        function autoGetNumber() {
+            getNumber();
+        }
+
+        setInterval(autoGetNumber, 3000);
+
+        getNumber(); // Automatically load the number when the page is loaded
+
+        // Function to calculate the level we are at given an amount of experience as parametre.
+        async function figureOutLevelGivenXP(exp) {
+            //console.log("Exp = " + exp);
+            checkXp = 10;
+            incrementLevel = 0;
+            nextLevelExp = 10;
+            previousLevelExp = 0;
+            expAquiredForCurrentLevel = 0;
+            expRequiredToLevelUp = 0;
+            pourcentageExpAquiredOfCurrentLevel = 0;
+            for (i = 1; i < exp; i++) {
+                incrementLevel = (Math.floor(i / 5) + 1) * 10;
+                //console.log("Current Checked xp = " + checkXp);
+                if (checkXp > exp) {
+                    //console.log("Level = " + i);
+                    //console.log("Exp for previous level = " + previousLevelExp);
+                    //console.log("Exp for next level = " + nextLevelExp);
+                    expRequiredToLevelUp = nextLevelExp - previousLevelExp;
+                    //console.log("Exp Required to level up  = " + expRequiredToLevelUp);
+                    expAquiredForCurrentLevel = exp - previousLevelExp;
+                    //console.log("Exp Aquired Within the current level  = " + expAquiredForCurrentLevel);
+                    pourcentageExpAquiredOfCurrentLevel = Math.floor((expAquiredForCurrentLevel * 100) / expRequiredToLevelUp);
+                    //console.log("Pourcentage of exp of current level  = " + pourcentageExpAquiredOfCurrentLevel);
+                    barExp.style.width = pourcentageExpAquiredOfCurrentLevel + "%";
+                    //console.log("Width of Exp bar  = " + pourcentageExpAquiredOfCurrentLevel + "%");
+                    lvlIndicatorP.innerHTML = "Lvl " + i;
+
+                    //When function finished, set width of exp bar and Level text.
+                    document.getElementById("barExp").style.width = pourcentageExpAquiredOfCurrentLevel;
+                    document.getElementById("lvlIndicatorP").innerHTML = "LVL " + i;
+                    return i;
+                }
+                else {
+                    checkXp += incrementLevel;
+                    previousLevelExp = nextLevelExp;
+                    nextLevelExp += incrementLevel;
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>
