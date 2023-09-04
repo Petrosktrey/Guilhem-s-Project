@@ -10,19 +10,20 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
 //const port = 3000;
-const port = 8080;
+//const port = 8080;
+const port = 443;
 const dataFile = 'data.txt';
 
 
 // For Testing : 
 // This one doesn't work with guilleme's secret
-// twitch event trigger subscribe -F http://localhost:8080/eventsub/ -s d817pkfq98o453knqkcm9a1h1ir3x1
+// twitch event trigger subscribe -F http://localhost:443/eventsub/ -s d817pkfq98o453knqkcm9a1h1ir3x1
 // TESTING SUBSCRIPTION WITH TIERS : 
-// twitch event trigger channel.subscribe -F http://localhost:8080/eventsub/ -s d817pkfq98o453knqkcm9a1h1ir3x1 --version 1 --tier 2000
+// twitch event trigger channel.subscribe -F http://localhost:443/eventsub/ -s d817pkfq98o453knqkcm9a1h1ir3x1 --version 1 --tier 2000
 // TESTING FOLLOW : 
-// twitch event trigger channel.follow -F http://localhost:8080/eventsub/ -s d817pkfq98o453knqkcm9a1h1ir3x1 --version 2
+// twitch event trigger channel.follow -F http://localhost:443/eventsub/ -s d817pkfq98o453knqkcm9a1h1ir3x1 --version 2
 // TESTING CHEERS : 
-// twitch event trigger channel.cheer -F http://localhost:8080/eventsub/ -s d817pkfq98o453knqkcm9a1h1ir3x1 --version 1 --cost 1500
+// twitch event trigger channel.cheer -F http://localhost:443/eventsub/ -s d817pkfq98o453knqkcm9a1h1ir3x1 --version 1 --cost 1500
 
 
 // Notification request headers
@@ -89,7 +90,7 @@ app.post('/eventsub', (req, res) => {
         let notification = JSON.parse(req.body);
 
         if (MESSAGE_TYPE_NOTIFICATION === req.headers[MESSAGE_TYPE]) {
-
+            // FOLLOW NOTIFICATION
             if (notification.subscription.type === "channel.follow") {
                 fs.readFile(dataFile, 'utf-8', (err, data) => {
                     if (err) {
@@ -112,6 +113,7 @@ app.post('/eventsub', (req, res) => {
                 });
                 console.log("Hey I'm a Follow !! ");
             }
+            // CHEER NOTIFICATION
             else if (notification.subscription.type === "channel.cheer") {
                 fs.readFile(dataFile, 'utf-8', (err, data) => {
                     if (err) {
@@ -134,6 +136,7 @@ app.post('/eventsub', (req, res) => {
                 });
                 console.log("Hey I'm a Cheer of " + notification.event.bits + "bits !");
             }
+            // SUBSCRIPTION NOTIFICATION
             else if (notification.subscription.type === "channel.subscribe") {
                 fs.readFile(dataFile, 'utf-8', (err, data) => {
                     if (err) {
@@ -156,7 +159,53 @@ app.post('/eventsub', (req, res) => {
                 });
                 console.log("Someone just Subbed with tier " + (parseInt(notification.event.tier) / 1000));
             }
+            // CHANNEL RESUBSCRIPTION NOTIFICATION
+            else if (notification.subscription.type === "channel.subscription.message") {
+                fs.readFile(dataFile, 'utf-8', (err, data) => {
+                    if (err) {
+                        res.status(500).send('Error reading the file.');
+                    }
+                    else {
+                        const currentNumber = parseInt(data);
+                        const updatedNumber = currentNumber + 5 * (parseInt(notification.event.tier) / 1000);
 
+                        fs.writeFile(dataFile, updatedNumber.toString(), 'utf-8', (err) => {
+                            if (err) {
+                                res.status(500).send("Error updating the file");
+                            }
+                            else {
+                                // Emit the updated number to connected clients
+                                io.emit('updateNumber', updatedNumber);
+                            }
+                        });
+                    }
+                });
+                console.log("Someone just RE-Subbed with tier " + (parseInt(notification.event.tier) / 1000));
+            }
+
+            // GIFT SUBSCRIPTION NOTIFICATION
+            else if (notification.subscription.type === "channel.subscription.gift") {
+                fs.readFile(dataFile, 'utf-8', (err, data) => {
+                    if (err) {
+                        res.status(500).send('Error reading the file.');
+                    }
+                    else {
+                        const currentNumber = parseInt(data);
+                        const updatedNumber = currentNumber + parseInt(notification.event.total) * (5 * (parseInt(notification.event.tier) / 1000));
+
+                        fs.writeFile(dataFile, updatedNumber.toString(), 'utf-8', (err) => {
+                            if (err) {
+                                res.status(500).send("Error updating the file");
+                            }
+                            else {
+                                // Emit the updated number to connected clients
+                                io.emit('updateNumber', updatedNumber);
+                            }
+                        });
+                    }
+                });
+                console.log("Someone just Gifted " + parseInt(notification.event.total) + " Subbes with tier " + (parseInt(notification.event.tier) / 1000));
+            }
             // TODO: Do something with the event's data.
 
             console.log(`Event type: ${notification.subscription.type}`);
